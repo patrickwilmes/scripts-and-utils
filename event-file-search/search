@@ -1,0 +1,48 @@
+#!/bin/bash
+
+SEARCH_DIR=$1
+
+TEMP_CLASSES="event_classes_temp.txt"
+TEMP_DETAILS="event_details_temp.txt"
+TEMP_UNIQUE_DETAILS="unique_event_details_temp.txt"
+
+PLANTUML_FILE="event_classes_with_fields.puml"
+
+# Find all .kt files and search for classes containing 'Event'
+grep -r --include="*.kt" "class.*Event" "$SEARCH_DIR" > "$TEMP_CLASSES"
+
+# Start writing the PlantUML file
+echo "@startuml" > "$PLANTUML_FILE"
+echo "skinparam classAttributeIconSize 0" >> "$PLANTUML_FILE"
+
+# Extract class names and their fields
+while IFS= read -r line
+do
+  # Extract the class name
+  class_name=$(echo "$line" | grep -oP 'class\s+\K\w+Event')
+  if [[ -n "$class_name" ]]; then
+    echo "class $class_name {" >> "$PLANTUML_FILE"
+    
+    file=$(echo $line | awk -F : '{ print $1 }')
+    echo "$file"
+
+    awk '/class '$class_name'/,/^}/{if(/var |val / || /\(/)print}' "$file" | grep -oP '(var|val)\s+\w+\s*:\s*\w+|\(\s*\w+\s*:\s*\w+' >> "$TEMP_DETAILS"
+    sort "$TEMP_DETAILS" | uniq > "$TEMP_UNIQUE_DETAILS"
+
+    while IFS= read -r detail_line
+    do
+        field=$detail_line
+      echo "$field"
+      echo "  $field" >> "$PLANTUML_FILE"
+    done < "$TEMP_UNIQUE_DETAILS"
+
+    echo "}" >> "$PLANTUML_FILE"
+    rm "$TEMP_DETAILS" "$TEMP_UNIQUE_DETAILS"
+  fi
+done < "$TEMP_CLASSES"
+
+echo "@enduml" >> "$PLANTUML_FILE"
+
+rm "$TEMP_CLASSES"
+echo "PlantUML diagram with fields has been written to $PLANTUML_FILE"
+
