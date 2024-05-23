@@ -1,0 +1,17 @@
+#!/bin/bash
+
+gh repo list -L1000 --json sshUrl | jq '.[].sshUrl' | sed 's/"//g' > repos.txt
+REPO_LIST="repos.txt"
+
+if [ ! -f "$REPO_LIST" ]; then
+  echo "File $REPO_LIST not found!"
+  exit 1
+fi
+
+while IFS= read -r REPO_URL; do
+  if [ -n "$REPO_URL" ]; then
+    echo "Cloning repository: $REPO_URL"
+    git clone "$REPO_URL"
+  fi
+done < "$REPO_LIST"
+
